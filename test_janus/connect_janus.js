@@ -60,7 +60,7 @@ console.log(typeof Janus)
 console.log(typeof Janus.init)
 
 // 1 attach 2 register
-var testMode = 1;
+var testMode = 2;
 
 Janus.init({debug: "all", callback: function() {
   // Use a button to start the demo
@@ -131,6 +131,9 @@ Janus.init({debug: "all", callback: function() {
               } else if(event == "registered"){
                 //join 
                 Janus.log("register over begin join");
+                if(testMode <= 2){
+                  return;
+                }
                 var upyBody = {"request": "join","ptype":  "publisher","client_id": clientId ,"sec_key":""};            
                 Janus.log(upyBody);
                 broadcast.send({ "message": upyBody,success:function(suc){Janus.log(suc)},error:function(err){Janus.log(err)} });

@@ -2,7 +2,7 @@
 var request = require('request');
 var fs = require('fs');
 var wrtc = require('../node-webrtc');
-
+var program = require('commander');
 
 eval(fs.readFileSync('janus.js')+'');
 
@@ -63,9 +63,31 @@ console.log(typeof Janus.init)
 // 1 attach 2 register
 var testMode = 10;
 
+
 Janus.init({debug: "all", callback: function() {
-  // Use a button to start the demo
-  var clientId = randomInt(6);
+    // Use a button to start the demo
+    var clientId = randomInt(6);
+   program
+       .version("0.1.0")
+       .option("-t, --type <n>", 'type', parseInt)
+       .option('-c, --clientid <n>','client id', parseInt)
+       .option('-s, --server [value]','server info')
+       .parse(process.argv);
+   console.log("parse command line:");
+   if(program.type){
+       //role = parseInt(program.type);
+       role = program.type;
+       console.log('input type '+ role);
+   }
+   if(program.server){
+       httpServer = "http://" + program.server + ":8088/janus";
+       console.log("input httpserver "+ httpServer);
+   }
+   if(program.clientid){
+       clientId = program.clientid; //parseInt(program.clientid);
+       console.log("input client id "+clientId);
+   }
+
   console.log("input clientId = %d",clientId);
   // Make sure the browser supports WebRTC
   // if(!Janus.isWebrtcSupported()) {

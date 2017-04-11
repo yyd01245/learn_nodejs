@@ -1,0 +1,21 @@
+{
+  "name": "test_janus",
+  "version": "0.1.0",
+  "description": "connect janus for datachannel",
+  "author": "yyd",
+  "dependencies": {
+    "jsdom": "latest",
+    "request": "latest",
+    "commander": "latest",
+    "wrtc": "latest"
+  },
+  "main": "connect_janus.js",
+  "bin": {
+    "connect": "./connect_janus.js"
+  },
+  "scripts": {
+    "start": "node connect_janus.js",
+    "loop": "node loop.js"
+  }
+
+}

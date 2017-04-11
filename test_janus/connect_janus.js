@@ -19,11 +19,12 @@ var RESPONE_DISMATCH = 102;
 
 
 var sessionid = null;
-var httpServer = "http://10.0.6.53:8088/janus"
+var httpServer = "http://10.0.3.153:8088/janus"
 var janus = null;
 var broadcast = null;
-var role = 1;  // 1 publisher 2 listener
+var role = 2;  // 1 publisher 2 listener
 
+var datachannel = null;
 
 
 function randomString(len) {
@@ -60,7 +61,7 @@ console.log(typeof Janus)
 console.log(typeof Janus.init)
 
 // 1 attach 2 register
-var testMode = 2;
+var testMode = 10;
 
 Janus.init({debug: "all", callback: function() {
   // Use a button to start the demo
@@ -191,24 +192,14 @@ Janus.init({debug: "all", callback: function() {
               Janus.debug(jsep);
               if(role == 1){
                 // handle jsep
-                broadcast.handleRemoteJsep({jsep: jsep});
+               // broadcast.handleRemoteJsep({jsep: jsep});
+                  doSetRemoteDesc(jsep);
+                  setTimeout(function () {
+                      SendData();
+                  }, 2000);
               } else if(role == 2){
                 // Answer and attach
-                broadcast.createAnswer(
-                  {
-                    jsep: jsep,
-                    media: { audioSend: false, videoSend: false },	// We want recvonly audio/video
-                    success: function(jsep) {
-                      Janus.debug("Got SDP!");
-                      Janus.debug(jsep);
-                      var body = { "request": "start"};
-                      broadcast.send({"message": body, "jsep": jsep});
-                    },
-                    error: function(error) {
-                      Janus.error("WebRTC error:", error);
-                      bootbox.alert("WebRTC error... " + JSON.stringify(error));
-                    }
-                  });
+                  listenerOwnFeed(jsep);
               }
             }
 
@@ -243,6 +234,11 @@ Janus.init({debug: "all", callback: function() {
   });
 }});
 
+function doWaitforDataChannels()
+{
+    console.log('awaiting data channels');
+}
+
 function doSetRemoteDesc(desc)
 {
   pc.setRemoteDescription(
@@ -250,6 +246,40 @@ function doSetRemoteDesc(desc)
     doWaitforDataChannels,
     doHandleError
   );
+}
+
+function sendJsepAnswer(desc){
+    // set local
+    Janus.log("doSetLocalDesc begin 0");
+    pc.setLocalDescription(
+        new RTCSessionDescription(desc),
+        doWaitforDataChannels,
+        doHandleError);
+    //var useAudio = true;
+    Janus.log("sendJsepAnswer begin ");
+
+    var jsep = {'type': desc.type, 'sdp': desc.sdp};
+    Janus.debug(jsep);
+    // var audioenabled = useAudio;
+    // var videoenabled = true;
+    Janus.debug("Got SDP!");
+
+    var body = { "request": "start"};
+    //broadcast.send({"message": body, "jsep": jsep});
+    broadcast.send({"message": body, "jsep": jsep,success:function(suc){Janus.log(suc)},error:function(err){Janus.log(err)}  });
+}
+
+function doCreateAnswer() {
+    pc.createAnswer(sendJsepAnswer, doHandleError);
+
+}
+
+function doSetCreateAnswer(desc) {
+    Janus.log("doSetLocalDesc begin 0");
+    pc.setRemoteDescription(
+        new RTCSessionDescription(desc),
+        doCreateAnswer,
+        doHandleError);
 }
 
 function doSendOffer(offer)
@@ -275,7 +305,7 @@ function doSetLocalDesc(desc) {
     pc.setLocalDescription(
         new RTCSessionDescription(desc),
         doSendOffer.bind(undefined, desc),
-        doHandleError)
+        doHandleError);
 }
 
 function set_pc1_local_description(desc) {
@@ -287,16 +317,91 @@ function set_pc1_local_description(desc) {
     doHandleError
   );
 }
+function listenerOwnFeed(jsep) {
+    // Publish our stream
+    Janus.log("listenerOwnFeed begin 00");
+    //var pc_config = {"iceServers": iceServers, "iceTransportPolicy": iceTransportPolicy};
+    pc = new RTCPeerConnection(
+        {
+            iceServers: [{url:'stun:stun.ekiga.net:3478'}]
+        },
+        {
+            //'optional': []
+            "optional": [{"DtlsSrtpKeyAgreement": true}]
+        }
+    );
+    //pc = new RTCPeerConnection();
+    Janus.log("listenerOwnFeed begin 0");
+    // pc.onsignalingstatechange = function(event)
+    // {
+    //   console.info("signaling state change: ", event.target.signalingState);
+    // };
+    // pc.oniceconnectionstatechange = function(event)
+    // {
+    //   console.info("ice connection state change: ", event.target.iceConnectionState);
+    // };
+    // pc.onicegatheringstatechange = function(event)
+    // {
+    //   console.info("ice gathering state change: ", event.target.iceGatheringState);
+    // };
+    pc.onicecandidate = function(candidate){
+        Janus.log("onicecandidate begin ");
+        if(!candidate.candidate) return;
+        pc.addIceCandidate(candidate.candidate);
+        // var candidate_info = {
+        //     "candidate": candidate.candidate.candidate,
+        //     "sdpMid": candidate.candidate.sdpMid,
+        //     "sdpMLineIndex": candidate.candidate.sdpMLineIndex
+        // };
+        //
+        // // Send candidate
+        // broadcast.sendTrickle(candidate_info);
+    };
+    // Janus.log("listenerOwnFeed begin 1");
+    // datachannel = pc.createDataChannel("JanusDataChannel");
+    // Janus.log("listenerOwnFeed begin 2");
+    // datachannel.onopen = function() {
+    //     console.log("pc2: data channel open");
+    //     datachannel.onmessage = function(event) {
+    //         var data = event.data;
+    //         console.log("dc2: received '"+data+"'");
+    //         console.log("dc2: sending 'pong'");
+    //        // datachannel.send("pong");
+    //     }
+    // }
+    // Janus.log("listenerOwnFeed begin 3");
+    // console.log('pc: create answer');
+
+    pc.ondatachannel = function(event) {
+        datachannel = event.channel;
+        datachannel.onopen = function() {
+            console.log("pc2: data channel open");
+            datachannel.onmessage = function(event) {
+                var data = event.data;
+                console.log("dc2: received '"+data+"'");
+
+            }
+        };
+    }
+
+    Janus.log("publishOwnFeed begin 4");
+    doSetCreateAnswer(jsep);
+
+
+}
+
 
 function publishOwnFeed(useAudio) {
 	// Publish our stream
   Janus.log("publishOwnFeed begin 00");
+    //var pc_config = {"iceServers": iceServers, "iceTransportPolicy": iceTransportPolicy};
   pc = new RTCPeerConnection(
     {
-      iceServers: [{url:'stun:stun.l.google.com:19302'}]
+      iceServers: [{url:'stun:stun.ekiga.net:3478'}]
     },
     {
-      'optional': []
+      //'optional': []
+        "optional": [{"DtlsSrtpKeyAgreement": true}]
     }
   );
    //pc = new RTCPeerConnection();
@@ -317,17 +422,27 @@ function publishOwnFeed(useAudio) {
     Janus.log("onicecandidate begin ");
     if(!candidate.candidate) return;
     pc.addIceCandidate(candidate.candidate);
+      var candidate_info = {
+          "candidate": candidate.candidate.candidate,
+          "sdpMid": candidate.candidate.sdpMid,
+          "sdpMLineIndex": candidate.candidate.sdpMLineIndex
+      };
+
+      // Send candidate
+      broadcast.sendTrickle(candidate_info);
+
+
   };
    Janus.log("publishOwnFeed begin 1");
-  var dc = pc.createDataChannel("JanusDataChannel");
+  datachannel = pc.createDataChannel("JanusDataChannel");
      Janus.log("publishOwnFeed begin 2");
-  dc.onopen = function() {
+    datachannel.onopen = function() {
     console.log("pc1: data channel open");
-    dc.onmessage = function(event) {
+    datachannel.onmessage = function(event) {
       var data = event.data;
       console.log("dc1: received '"+data+"'");
       console.log("dc1: sending 'pong'");
-      dc.send("pong");
+      datachannel.send("pong");
     }
   }
     Janus.log("publishOwnFeed begin 3");
@@ -340,38 +455,13 @@ function publishOwnFeed(useAudio) {
 
 }
 
-	// broadcast.createOffer(
-	// 	{
-	// 		media: { audioRecv: false, videoRecv: false, audioSend: useAudio, videoSend: true},	// Publishers are sendonly
-	// 		success: function(jsep) {
-	// 			Janus.debug("Got publisher SDP!");
-	// 			Janus.debug(jsep);
-	// 			audioenabled = useAudio;
-	// 			videoenabled = true;
-	// 			var publish = { "request": "configure", "audio": useAudio, "video": true  };
-	// 			broadcast.send({"message": publish, "jsep": jsep,success:function(suc){Janus.log(suc)},error:function(err){Janus.log(err)}  });
-	// 		},
-	// 		error: function(error) {
-	// 			Janus.error("WebRTC error:", error);
-	// 			if (useAudio) {
-	// 				 publishOwnFeed(false);
-	// 			} else {
-	// 				Janus.error("WebRTC error: no idea !", error);
-	// 			}
-	// 		}
-	// 	});
+function SendData() {
+    var text = "hello data channel";
+    Janus.log("Sending string on data channel: " + text);
+    datachannel.send(text);
+    setTimeout(function () {
+        SendData();
+    }, 2000);
+}
 
-// request.post(
-//   httpServer,
-//   { json: { "janus": "create","transaction":trans_number} },
-//   function (error, response,body) {
-//     if(!error && response.statusCode == 200) {
-//       console.log(body)
-//       if(body["janus"] == "success"){
-//          sessionid = body["data"]["id"]
-//          console.log(sessionid);
 
-//       }
-//     }
-//   }
-// )

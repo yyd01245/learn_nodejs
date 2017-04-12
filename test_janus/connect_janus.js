@@ -190,6 +190,9 @@ Janus.init({debug: "all", callback: function() {
                   if(startedInfo === 'ok') {
                     // That's us
                     Janus.log("broacast linsten start ok");
+                      // setTimeout(function () {
+                      //     SendData();
+                      // }, 2000);
                   }										
                 } else if(msg["incall"] !== undefined && msg["incall"] !== null ) {
                   var caller_id = msg["incall"];												
@@ -203,7 +206,7 @@ Janus.init({debug: "all", callback: function() {
                 } else if(msg["resp_called"] !== undefined && msg["resp_called"] !== null){
                   Janus.log("resp call  ");
                 } else if(msg["error"] !== undefined && msg["error"] !== null) {
-                    bootbox.alert(msg["error"]);
+                    //bootbox.alert(msg["error"]);
                     broadcast.hangup();
                   //janus.destroy();
                 }               
@@ -213,8 +216,6 @@ Janus.init({debug: "all", callback: function() {
               Janus.debug("Handling SDP as well...");
               Janus.debug(jsep);
               if(role == 1){
-                // handle jsep
-               // broadcast.handleRemoteJsep({jsep: jsep});
                   doSetRemoteDesc(jsep);
                   setTimeout(function () {
                       SendData();
@@ -272,26 +273,20 @@ function doSetRemoteDesc(desc)
 
 function sendJsepAnswer(desc){
     // set local
-    Janus.log("doSetLocalDesc begin 0");
     pc.setLocalDescription(
         new RTCSessionDescription(desc),
         doWaitforDataChannels,
         doHandleError);
-    //var useAudio = true;
-    Janus.log("sendJsepAnswer begin ");
 
     var jsep = {'type': desc.type, 'sdp': desc.sdp};
     Janus.debug(jsep);
-    // var audioenabled = useAudio;
-    // var videoenabled = true;
-    Janus.debug("Got SDP!");
 
     var body = { "request": "start"};
-    //broadcast.send({"message": body, "jsep": jsep});
     broadcast.send({"message": body, "jsep": jsep,success:function(suc){Janus.log(suc)},error:function(err){Janus.log(err)}  });
 }
 
 function doCreateAnswer() {
+    Janus.log("Remote description accepted!");
     pc.createAnswer(sendJsepAnswer, doHandleError);
 
 }
@@ -307,15 +302,13 @@ function doSetCreateAnswer(desc) {
 function doSendOffer(offer)
 {
   var useAudio = true;
-  Janus.log("doSendOffer begin ");
- // var jsep = {"type":"offer","sdp":{'candidate': candidate.candidate, 'sdpMid': candidate.sdpMid, 'sdpMLineIndex': candidate.sdpMLineIndex}};
+
   var jsep = {'type': offer.type, 'sdp': offer.sdp};
   Janus.debug(jsep);
   var audioenabled = useAudio;
   var videoenabled = true;
-  var publish = { "request": "configure", "audio": useAudio, "video": true  };
+  var publish = { "request": "configure", "audio": false, "video": false  };
   broadcast.send({"message": publish, "jsep": jsep,success:function(suc){Janus.log(suc)},error:function(err){Janus.log(err)}  });
-  
 
 }
 function doHandleError(error) {
@@ -340,20 +333,34 @@ function set_pc1_local_description(desc) {
   );
 }
 function listenerOwnFeed(jsep) {
-    // Publish our stream
-    Janus.log("listenerOwnFeed begin 00");
-    //var pc_config = {"iceServers": iceServers, "iceTransportPolicy": iceTransportPolicy};
+
     pc = new RTCPeerConnection(
         {
             iceServers: [{url:'stun:stun.ekiga.net:3478'}]
         },
         {
-            //'optional': []
             "optional": [{"DtlsSrtpKeyAgreement": true}]
         }
     );
-    //pc = new RTCPeerConnection();
-    Janus.log("listenerOwnFeed begin 0");
+    pc.onicecandidate = function(candidate){
+        Janus.log("onicecandidate begin ");
+        if (candidate.candidate == null || candidate.candidate.candidate.indexOf('endOfCandidates') > 0) {
+            Janus.log("End of candidates.");
+            // Notify end of candidates
+            broadcast.sendTrickle({"completed": true});
+        }
+        if(!candidate.candidate) return;
+        pc.addIceCandidate(candidate.candidate);
+
+        var candidate_info = {
+            "candidate": candidate.candidate.candidate,
+            "sdpMid": candidate.candidate.sdpMid,
+            "sdpMLineIndex": candidate.candidate.sdpMLineIndex
+        };
+
+        // Send candidate
+        broadcast.sendTrickle(candidate_info);
+    };
     // pc.onsignalingstatechange = function(event)
     // {
     //   console.info("signaling state change: ", event.target.signalingState);
@@ -366,68 +373,45 @@ function listenerOwnFeed(jsep) {
     // {
     //   console.info("ice gathering state change: ", event.target.iceGatheringState);
     // };
-    pc.onicecandidate = function(candidate){
-        Janus.log("onicecandidate begin ");
-        if(!candidate.candidate) return;
-        pc.addIceCandidate(candidate.candidate);
-        // var candidate_info = {
-        //     "candidate": candidate.candidate.candidate,
-        //     "sdpMid": candidate.candidate.sdpMid,
-        //     "sdpMLineIndex": candidate.candidate.sdpMLineIndex
-        // };
-        //
-        // // Send candidate
-        // broadcast.sendTrickle(candidate_info);
+
+    datachannel = pc.createDataChannel("JanusDataChannel",{ordered:false});
+    Janus.log("listenerOwnFeed begin 2");
+    datachannel.onopen = function() {
+        console.log("pc2: data channel open");
+        datachannel.onmessage = function(event) {
+            var data = event.data;
+            console.log("dc2: received '"+data+"'");
+        }
     };
-    // Janus.log("listenerOwnFeed begin 1");
-    // datachannel = pc.createDataChannel("JanusDataChannel");
-    // Janus.log("listenerOwnFeed begin 2");
-    // datachannel.onopen = function() {
-    //     console.log("pc2: data channel open");
-    //     datachannel.onmessage = function(event) {
-    //         var data = event.data;
-    //         console.log("dc2: received '"+data+"'");
-    //         console.log("dc2: sending 'pong'");
-    //        // datachannel.send("pong");
-    //     }
+
+    console.log('pc: create answer');
+
+    // pc.ondatachannel = function(event) {
+    //     datachannel = event.channel;
+    //     datachannel.onopen = function() {
+    //         console.log("pc2: data channel open");
+    //         datachannel.onmessage = function(event) {
+    //             var data = event.data;
+    //             console.log("dc2: received '"+data+"'");
+    //
+    //         }
+    //     };
     // }
-    // Janus.log("listenerOwnFeed begin 3");
-    // console.log('pc: create answer');
 
-    pc.ondatachannel = function(event) {
-        datachannel = event.channel;
-        datachannel.onopen = function() {
-            console.log("pc2: data channel open");
-            datachannel.onmessage = function(event) {
-                var data = event.data;
-                console.log("dc2: received '"+data+"'");
-
-            }
-        };
-    }
-
-    Janus.log("publishOwnFeed begin 4");
     doSetCreateAnswer(jsep);
-
 
 }
 
 
 function publishOwnFeed(useAudio) {
-	// Publish our stream
-  Janus.log("publishOwnFeed begin 00");
-    //var pc_config = {"iceServers": iceServers, "iceTransportPolicy": iceTransportPolicy};
   pc = new RTCPeerConnection(
     {
       iceServers: [{url:'stun:stun.ekiga.net:3478'}]
     },
     {
-      //'optional': []
         "optional": [{"DtlsSrtpKeyAgreement": true}]
     }
   );
-   //pc = new RTCPeerConnection();
-   Janus.log("publishOwnFeed begin 0");
   // pc.onsignalingstatechange = function(event)
   // {
   //   console.info("signaling state change: ", event.target.signalingState);
@@ -442,38 +426,33 @@ function publishOwnFeed(useAudio) {
   // };
   pc.onicecandidate = function(candidate){
     Janus.log("onicecandidate begin ");
-    if(!candidate.candidate) return;
-    pc.addIceCandidate(candidate.candidate);
+      if (candidate.candidate == null || candidate.candidate.candidate.indexOf('endOfCandidates') > 0) {
+          Janus.log("End of candidates.");
+          // Notify end of candidates
+          broadcast.sendTrickle({"completed": true});
+      }
+      if(!candidate.candidate) return;
+      pc.addIceCandidate(candidate.candidate);
       var candidate_info = {
           "candidate": candidate.candidate.candidate,
           "sdpMid": candidate.candidate.sdpMid,
           "sdpMLineIndex": candidate.candidate.sdpMLineIndex
       };
-
       // Send candidate
       broadcast.sendTrickle(candidate_info);
-
-
   };
-   Janus.log("publishOwnFeed begin 1");
-  datachannel = pc.createDataChannel("JanusDataChannel");
-     Janus.log("publishOwnFeed begin 2");
+
+  datachannel = pc.createDataChannel("JanusDataChannel",{ordered:false});
     datachannel.onopen = function() {
-    console.log("pc1: data channel open");
+    console.log("dc: data channel open");
     datachannel.onmessage = function(event) {
       var data = event.data;
-      console.log("dc1: received '"+data+"'");
-      console.log("dc1: sending 'pong'");
-      datachannel.send("pong");
+      console.log("dc: received '"+data+"'");
     }
-  }
-    Janus.log("publishOwnFeed begin 3");
+  };
   console.log('pc: create offer');
 
-     Janus.log("publishOwnFeed begin 4");
   pc.createOffer(doSetLocalDesc, doHandleError);
-    //pc.createOffer(set_pc1_local_description, handle_error);
-     Janus.log("publishOwnFeed begin 5");
 
 }
 

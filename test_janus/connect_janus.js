@@ -19,10 +19,10 @@ var RESPONE_DISMATCH = 102;
 
 
 var sessionid = null;
-var httpServer = "http://10.0.3.153:8088/janus"
+var httpServer = "http://127.0.0.1:8088/janus"
 var janus = null;
 var broadcast = null;
-var role = 2;  // 1 publisher 2 listener
+var role = 1;  // 1 publisher 2 listener
 
 var datachannel = null;
 
@@ -48,6 +48,15 @@ function randomInt(len) {
 }
 
 var trans_number = randomString(12);
+var sendTime = 1000; //ms
+var sendBytesOnce = 802;//bytes
+var sendTextData='';
+var sendRealData=null;
+for(var n =0;sendTextData.length< 1400; n++){
+    sendTextData += n.toString();
+}
+// console.log(sendTextData);
+// console.log("sendTextData "+sendTextData.length);
 
 var RTCPeerConnection     = wrtc.RTCPeerConnection;
 var RTCSessionDescription = wrtc.RTCSessionDescription;
@@ -67,11 +76,15 @@ var testMode = 10;
 Janus.init({debug: "all", callback: function() {
     // Use a button to start the demo
     var clientId = randomInt(6);
+    sendRealData = sendTextData.substring(0,sendBytesOnce); // 303
+    console.log('send data end= ' +sendRealData.substring(sendRealData.length-3));
    program
        .version("0.1.0")
        .option("-t, --type <n>", 'type', parseInt)
        .option('-c, --clientid <n>','client id', parseInt)
        .option('-s, --server [value]','server info')
+       .option('-d, --time <n>','send data time', parseInt)
+       .option('-b, --bytes <n>','send bytes once', parseInt)
        .parse(process.argv);
    console.log("parse command line:");
    if(program.type){
@@ -86,6 +99,14 @@ Janus.init({debug: "all", callback: function() {
    if(program.clientid){
        clientId = program.clientid; //parseInt(program.clientid);
        console.log("input client id "+clientId);
+   }
+   if(program.time){
+       sendTime = program.time;
+       console.log("input client id "+sendTime);
+   }
+   if(program.bytes){
+       sendBytesOnce = program.bytes;
+       sendRealData = sendTextData.substring(0,sendBytesOnce); // 303
    }
 
   console.log("input clientId = %d",clientId);
@@ -192,7 +213,7 @@ Janus.init({debug: "all", callback: function() {
                     Janus.log("broacast linsten start ok");
                       // setTimeout(function () {
                       //     SendData();
-                      // }, 2000);
+                      // }, sendTime);
                   }										
                 } else if(msg["incall"] !== undefined && msg["incall"] !== null ) {
                   var caller_id = msg["incall"];												
@@ -219,7 +240,7 @@ Janus.init({debug: "all", callback: function() {
                   doSetRemoteDesc(jsep);
                   setTimeout(function () {
                       SendData();
-                  }, 2000);
+                  }, sendTime);
               } else if(role == 2){
                 // Answer and attach
                   listenerOwnFeed(jsep);
@@ -361,44 +382,20 @@ function listenerOwnFeed(jsep) {
         // Send candidate
         broadcast.sendTrickle(candidate_info);
     };
-    // pc.onsignalingstatechange = function(event)
-    // {
-    //   console.info("signaling state change: ", event.target.signalingState);
-    // };
-    // pc.oniceconnectionstatechange = function(event)
-    // {
-    //   console.info("ice connection state change: ", event.target.iceConnectionState);
-    // };
-    // pc.onicegatheringstatechange = function(event)
-    // {
-    //   console.info("ice gathering state change: ", event.target.iceGatheringState);
-    // };
 
     datachannel = pc.createDataChannel("JanusDataChannel",{ordered:false});
-    Janus.log("listenerOwnFeed begin 2");
     datachannel.onopen = function() {
-        console.log("pc2: data channel open");
+        console.log("dc: data channel open");
         datachannel.onmessage = function(event) {
             var data = event.data;
-            console.log("dc2: received '"+data+"'");
+
+            console.log("dc: received len="+data.length + " data end= "+data.substring(799)+"'");
         }
     };
 
     console.log('pc: create answer');
 
-    // pc.ondatachannel = function(event) {
-    //     datachannel = event.channel;
-    //     datachannel.onopen = function() {
-    //         console.log("pc2: data channel open");
-    //         datachannel.onmessage = function(event) {
-    //             var data = event.data;
-    //             console.log("dc2: received '"+data+"'");
-    //
-    //         }
-    //     };
-    // }
-
-    doSetCreateAnswer(jsep);
+     doSetCreateAnswer(jsep);
 
 }
 
@@ -412,18 +409,7 @@ function publishOwnFeed(useAudio) {
         "optional": [{"DtlsSrtpKeyAgreement": true}]
     }
   );
-  // pc.onsignalingstatechange = function(event)
-  // {
-  //   console.info("signaling state change: ", event.target.signalingState);
-  // };
-  // pc.oniceconnectionstatechange = function(event)
-  // {
-  //   console.info("ice connection state change: ", event.target.iceConnectionState);
-  // };
-  // pc.onicegatheringstatechange = function(event)
-  // {
-  //   console.info("ice gathering state change: ", event.target.iceGatheringState);
-  // };
+
   pc.onicecandidate = function(candidate){
     Janus.log("onicecandidate begin ");
       if (candidate.candidate == null || candidate.candidate.candidate.indexOf('endOfCandidates') > 0) {
@@ -447,7 +433,7 @@ function publishOwnFeed(useAudio) {
     console.log("dc: data channel open");
     datachannel.onmessage = function(event) {
       var data = event.data;
-      console.log("dc: received '"+data+"'");
+        console.log("dc: received len="+data.length + " data end= "+data.substring(799)+"'");
     }
   };
   console.log('pc: create offer');
@@ -457,12 +443,12 @@ function publishOwnFeed(useAudio) {
 }
 
 function SendData() {
-    var text = "hello data channel";
-    Janus.log("Sending string on data channel: " + text);
-    datachannel.send(text);
+
+    Janus.log("Sending string on data channel end: " + sendRealData.substring(799));
+    datachannel.send(sendRealData);
     setTimeout(function () {
         SendData();
-    }, 2000);
+    }, sendTime);
 }
 
 

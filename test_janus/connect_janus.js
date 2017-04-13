@@ -55,6 +55,7 @@ var sendRealData=null;
 for(var n =0;sendTextData.length< 1400; n++){
     sendTextData += n.toString();
 }
+var clientId = randomInt(6);
 // console.log(sendTextData);
 // console.log("sendTextData "+sendTextData.length);
 
@@ -75,7 +76,7 @@ var testMode = 10;
 
 Janus.init({debug: "all", callback: function() {
     // Use a button to start the demo
-    var clientId = randomInt(6);
+
     sendRealData = sendTextData.substring(0,sendBytesOnce); // 303
     console.log('send data end= ' +sendRealData.substring(sendRealData.length-3));
    program
@@ -130,7 +131,8 @@ Janus.init({debug: "all", callback: function() {
             console.log("Plugin attached! (" + broadcast.getPlugin() + ", id=" + broadcast.getId() + ")");
             var upyBody = null;
             if(testMode <= 1){
-              return;
+                console.error("test mode over :"+testMode);
+                return;
             }
             if(role == 1) {
               var register = { "request": "register", "client_id": clientId };
@@ -176,7 +178,8 @@ Janus.init({debug: "all", callback: function() {
                 //join 
                 Janus.log("register over begin join");
                 if(testMode <= 2){
-                  return;
+                    console.error("test mode over :"+testMode);
+                    return;
                 }
                 var upyBody = {"request": "join","ptype":  "publisher","client_id": clientId ,"sec_key":""};            
                 Janus.log(upyBody);
@@ -184,8 +187,8 @@ Janus.init({debug: "all", callback: function() {
                 Janus.debug("Sending message (" + JSON.stringify(upyBody) + ")");
               } else if(event === "destroyed") {
                 //  has been destroyed
-                Janus.warn("The room has been destroyed!");
-							} else if(event === "attached"){
+                  console.error("The room has been destroyed!");
+              } else if(event === "attached"){
                 // subscribe 
                 var feedId = clientId;
                 var localID = msg["client_id"];
@@ -196,6 +199,7 @@ Janus.init({debug: "all", callback: function() {
                   var leaving = msg["leaving"];
                   Janus.log("Publisher left: " + leaving);
                   if(leaving == clientId){
+                      console.error("get publisher leaving :"+leaving);
                     broadcast.hangup();
                   }            
                 } else if(msg["configure"] !== undefined && msg["configure"] !== null){
@@ -228,8 +232,9 @@ Janus.init({debug: "all", callback: function() {
                   Janus.log("resp call  ");
                 } else if(msg["error"] !== undefined && msg["error"] !== null) {
                     //bootbox.alert(msg["error"]);
-                    broadcast.hangup();
-                  //janus.destroy();
+                    console.error("recv message error :"+msg['error']);
+                    //broadcast.hangup();
+                    janus.destroy();
                 }               
               }
             }
@@ -388,7 +393,9 @@ function listenerOwnFeed(jsep) {
         console.log("dc: data channel open");
         datachannel.onmessage = function(event) {
             var data = event.data;
-
+            if(data.substring(799) != "303" || data.length != 802){
+                console.error("recv client:"+clientId+" data is not 303 or len!=802");
+            }
             console.log("dc: received len="+data.length + " data end= "+data.substring(799)+"'");
         }
     };
@@ -445,6 +452,9 @@ function publishOwnFeed(useAudio) {
 function SendData() {
 
     Janus.log("Sending string on data channel end: " + sendRealData.substring(799));
+    if(sendRealData.substring(799) != "303" || sendRealData.length != 802){
+        console.error("client:"+clientId+" send data is not 303 or len!=802");
+    }
     datachannel.send(sendRealData);
     setTimeout(function () {
         SendData();

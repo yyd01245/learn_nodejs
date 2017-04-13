@@ -13,14 +13,15 @@ var Step = 0;
 
 var execPath = path.resolve("/Users/yanyandong/.nvm/versions/node/v6.9.4/bin/node")
 function Run(clientid){
-    console.log("begin exec");
+    console.log("begin exec : "+clientid);
 	//child_proc.execFile('/Users/yanyandong/.nvm/versions/node/v6.9.4/bin/node',["connect_janus.js","-s","10.0.1.189","-t","2","-c","4000"], function(error, stdout, stderr){
      //    if(error){
      //        throw error;
      //    }
      //    console.log(stdout);
     // });
-    var time = Qps * 1000/ 8 / 800;
+    var time = 1000/(Qps * 1000/ 8 / 800);
+
     var cmd = ["connect_janus.js",
                 "-s",serverAddr,
                 "-t",roleType.toString(),
@@ -28,9 +29,9 @@ function Run(clientid){
                 "-d",time.toString()
                 ];
     connect_exe = child_proc.spawn('/Users/yanyandong/.nvm/versions/node/v6.9.4/bin/node',cmd);
-    connect_exe.stdout.on('data',function (data) {
-        console.log('stdout:' + data);
-    });
+    // connect_exe.stdout.on('data',function (data) {
+    //     console.log('stdout:' + data);
+    // });
     connect_exe.stderr.on('data',function (data) {
         console.log('stderr:' + data);
     });
@@ -79,10 +80,12 @@ function loop(){
     for(var i = 0;i<Loop_Num;i++){
         var Node_path = "/Users/yanyandong/.nvm/versions/node/v6.9.4/bin/node"
         var clientid = beginClientID + i*Step;
-        setTimeout(function() {
-            Run(clientid);
-        }, 1000);
-        //console.log("loop time ",i);
+        (function (index) {
+            setTimeout(function() {
+                Run(index);
+            }, 500*i);
+        })(clientid);
+        
     }
 }
 loop();

@@ -7,6 +7,7 @@
     "jsdom": "latest",
     "request": "latest",
     "commander": "latest",
+    "child_process":"latest",
     "wrtc": "latest"
   },
   "main": "connect_janus.js",

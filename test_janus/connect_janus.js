@@ -1,7 +1,8 @@
 
 var request = require('request');
 var fs = require('fs');
-var wrtc = require('../node-webrtc');
+//var wrtc = require('../node-webrtc');
+var wrtc = require('wrtc');
 var program = require('commander');
 
 eval(fs.readFileSync('janus.js')+'');

@@ -397,7 +397,7 @@ function listenerOwnFeed(jsep) {
             if(data.substring(799) != "303" || data.length != 802){
                 console.error("recv client:"+clientId+" data is not 303 or len!=802");
             }
-            console.log("dc: received len="+data.length + " data end= "+data.substring(799)+"'");
+            console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(799)+"'");
         }
     };
 
@@ -441,7 +441,7 @@ function publishOwnFeed(useAudio) {
     console.log("dc: data channel open");
     datachannel.onmessage = function(event) {
       var data = event.data;
-        console.log("dc: received len="+data.length + " data end= "+data.substring(799)+"'");
+        console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(799)+"'");
     }
   };
   console.log('pc: create offer');

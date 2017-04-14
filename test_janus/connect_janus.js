@@ -4,9 +4,11 @@ var fs = require('fs');
 //var wrtc = require('../node-webrtc');
 var wrtc = require('wrtc');
 var program = require('commander');
+var Janus = require('./upyun.js').Janus;
+var init = require('./upyun').Init;
 
-eval(fs.readFileSync('janus.js')+'');
-
+//eval(fs.readFileSync('uprtc.js')+'');
+//eval(fs.readFileSync('janus.js')+'');
 /* respone case data list */
 var RESPONE_OK 			= 0;
 /* reject  */
@@ -26,7 +28,7 @@ var broadcast = null;
 var role = 1;  // 1 publisher 2 listener
 
 var datachannel = null;
-
+var msg_num = 0;
 
 function randomString(len) {
   var charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -67,15 +69,16 @@ var pc = null;
 var dataChannels = {};
 var pendingCandidates = [];
 
-console.log(typeof Janus.sessions)
-console.log(typeof Janus)
-console.log(typeof Janus.init)
+console.log(typeof Janus.sessions);
+console.log(typeof Janus.debug);
+console.log(typeof Janus);
+
 
 // 1 attach 2 register
 var testMode = 10;
 
 
-Janus.init({debug: "all", callback: function() {
+init({debug: "all", callback: function() {
     // Use a button to start the demo
 
     sendRealData = sendTextData.substring(0,sendBytesOnce); // 303
@@ -397,7 +400,12 @@ function listenerOwnFeed(jsep) {
             if(data.substring(799) != "303" || data.length != 802){
                 console.error("recv client:"+clientId+" data is not 303 or len!=802");
             }
-            console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(799)+"'");
+            msg_num += 1;
+            if(msg_num > 100){
+                msg_num = 0;
+                console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(799)+"'");
+            }
+
         }
     };
 

@@ -1,8 +1,8 @@
 
 var request = require('request');
 var fs = require('fs');
-//var wrtc = require('../node-webrtc');
-var wrtc = require('wrtc');
+var wrtc = require('../node-webrtc');
+//var wrtc = require('wrtc');
 var program = require('commander');
 var Janus = require('./upyun.js').Janus;
 var init = require('./upyun').Init;

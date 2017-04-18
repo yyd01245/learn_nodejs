@@ -282,7 +282,8 @@ init({debug: "all", callback: function() {
       Janus.error(error);
     },
     destroyed: function() {
-      window.location.reload();
+      //window.location.reload();
+        // clean up webrtc
     }
   });
 }});
@@ -397,14 +398,15 @@ function listenerOwnFeed(jsep) {
         console.log("dc: data channel open");
         datachannel.onmessage = function(event) {
             var data = event.data;
-            if(data.substring(799) != "303" || data.length != 802){
-                console.error("recv client:"+clientId+" data is not 303 or len!=802");
+            if(data.substring(sendBytesOnce-3) != "303" || data.length != sendBytesOnce){
+                console.error("recv client:"+clientId+" data is not 303 or len!= "+sendBytesOnce);
             }
             msg_num += 1;
-            if(msg_num > 100){
+            if(msg_num > 1000){
                 msg_num = 0;
-                console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(799)+"'");
+                console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
             }
+            //console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
 
         }
     };
@@ -459,11 +461,16 @@ function publishOwnFeed(useAudio) {
 }
 
 function SendData() {
-
-    Janus.log("Sending string on data channel end: " + sendRealData.substring(799));
-    if(sendRealData.substring(799) != "303" || sendRealData.length != 802){
-        console.error("client:"+clientId+" send data is not 303 or len!=802");
+    msg_num += 1;
+    if(msg_num > 1000) {
+        msg_num = 0;
+        Janus.log("client:"+clientId+" Sending string on data channel end: " + sendRealData.substring(sendBytesOnce - 3));
     }
+    //Janus.log("client:"+clientId+" Sending string on data channel end: " + sendRealData.substring(sendBytesOnce - 3));
+
+    // if(sendRealData.substring(799) != "303" || sendRealData.length != 802){
+    //     console.error("client:"+clientId+" send data is not 303 or len!=802");
+    // }
     datachannel.send(sendRealData);
     setTimeout(function () {
         SendData();

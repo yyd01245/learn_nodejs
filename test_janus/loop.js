@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+//export UV_THREADPOOL_SIZE=128
+process.env.UV_THREADPOOL_SIZE = 128;
 var path = require('path')
 var child_proc = require('child_process');
 var program = require('commander');
@@ -23,9 +25,12 @@ function Run(clientid){
                 "-d",time.toString()
                 ];
     connect_exe = child_proc.spawn('node',cmd);
-    // connect_exe.stdout.on('data',function (data) {
-    //     console.log('stdout:' + data);
-    // });
+    if(roleType == 2){
+        connect_exe.stdout.on('data',function (data) {
+            console.log('stdout:' + data);
+        });
+    }
+
     connect_exe.stderr.on('data',function (data) {
         console.log('stderr:' + data);
     });
@@ -76,7 +81,7 @@ function loop(){
         (function (index) {
             setTimeout(function() {
                 Run(index);
-            }, 500*i);
+            }, 3000*i);
         })(clientid);
         
     }

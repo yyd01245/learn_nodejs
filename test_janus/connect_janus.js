@@ -98,7 +98,7 @@ init({debug: "all", callback: function() {
        console.log('input type '+ role);
    }
    if(program.server){
-       httpServer = "http://" + program.server + ":8088/janus";
+       httpServer = "http://" + program.server + ":8088/uprtc";
        console.log("input httpserver "+ httpServer);
    }
    if(program.clientid){
@@ -129,7 +129,7 @@ init({debug: "all", callback: function() {
       janus.attach(
         {
         //	plugin: "janus.plugin.broadcast",
-          plugin: "janus.plugin.broadcast",
+          plugin: "uprtc.plugin.broadcast",
           success: function(pluginHandle) {
             broadcast = pluginHandle;
             console.log("Plugin attached! (" + broadcast.getPlugin() + ", id=" + broadcast.getId() + ")");
@@ -249,7 +249,7 @@ init({debug: "all", callback: function() {
                   doSetRemoteDesc(jsep);
                   setTimeout(function () {
                       SendData();
-                  }, sendTime);
+                  }, 1000);
               } else if(role == 2){
                 // Answer and attach
                   listenerOwnFeed(jsep);
@@ -401,12 +401,12 @@ function listenerOwnFeed(jsep) {
             if(data.substring(sendBytesOnce-3) != "303" || data.length != sendBytesOnce){
                 console.error("recv client:"+clientId+" data is not 303 or len!= "+sendBytesOnce);
             }
-            msg_num += 1;
-            if(msg_num > 1000){
-                msg_num = 0;
-                console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
-            }
-            //console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
+            // msg_num += 1;
+            // if(msg_num > 1000){
+            //     msg_num = 0;
+            //     console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
+            // }
+            console.log("recv client:"+clientId+" len="+data.length + " data end= "+data.substring(sendBytesOnce-3)+"'");
 
         }
     };
@@ -466,11 +466,12 @@ function SendData() {
         msg_num = 0;
         Janus.log("client:"+clientId+" Sending string on data channel end: " + sendRealData.substring(sendBytesOnce - 3));
     }
+
     //Janus.log("client:"+clientId+" Sending string on data channel end: " + sendRealData.substring(sendBytesOnce - 3));
 
-    // if(sendRealData.substring(799) != "303" || sendRealData.length != 802){
-    //     console.error("client:"+clientId+" send data is not 303 or len!=802");
-    // }
+    if(sendRealData.substring(799) != "303" || sendRealData.length != 802){
+        console.error("client:"+clientId+" send data is not 303 or len!=802");
+    }
     datachannel.send(sendRealData);
     setTimeout(function () {
         SendData();

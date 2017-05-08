@@ -54,7 +54,7 @@ function  noop () {
 var that = null;
 var servers = null, serversIndex = 0;
 var janus_Callbacks = null;
-var lostMaxNumber = 20;
+var lostMaxNumber = 2000000;
 
 function Janus(gatewayCallbacks) {
 
@@ -160,7 +160,7 @@ Janus.prototype.sendMessage = function (handleId, callbacks) {
     var message = callbacks.message;
     var jsep = callbacks.jsep;
     var transaction = randomString(12);
-    var request = { "janus": "message", "body": message, "transaction": transaction };
+    var request = { "uprtc": "message", "body": message, "transaction": transaction };
     if(this.token !== null && this.token !== undefined)
         request["token"] = token;
     if(this.apisecret !== null && this.apisecret !== undefined)
@@ -184,7 +184,7 @@ Janus.prototype.sendMessage = function (handleId, callbacks) {
             (function(json,janus_obj) {
                 Janus.debug("Message send!");
                 Janus.debug(json);
-                if(json["janus"] === "success") {
+                if(json["uprtc"] === "success") {
                     // We got a success, must have been a synchronous transaction
                     var plugindata = json["plugindata"];
                     if(plugindata === undefined || plugindata === null) {
@@ -197,7 +197,7 @@ Janus.prototype.sendMessage = function (handleId, callbacks) {
                     Janus.debug(data);
                     callbacks.success(data);
                     return;
-                } else if(json["janus"] !== "ack") {
+                } else if(json["uprtc"] !== "ack") {
                     // Not a success and not an ack, must be an error
                     if(json["error"] !== undefined && json["error"] !== null) {
                         Janus.error("Ooops: " + json["error"].code + " " + json["error"].reason);	// FIXME
@@ -229,7 +229,7 @@ Janus.prototype.sendTrickleCandidate = function (handleId, candidate) {
         Janus.warn("Is the gateway down? (connected=false)");
         return;
     }
-    var request = { "janus": "trickle", "candidate": candidate, "transaction": randomString(12) };
+    var request = { "uprtc": "trickle", "candidate": candidate, "transaction": randomString(12) };
     if(this.token !== null && this.token !== undefined)
         request["token"] = token;
     if(this.apisecret !== null && this.apisecret !== undefined)
@@ -258,7 +258,7 @@ Janus.prototype.sendTrickleCandidate = function (handleId, candidate) {
                 Janus.debug("Message send!");
                 Janus.vdebug("Candidate sent!");
                 Janus.vdebug(json);
-                if(json["janus"] !== "ack") {
+                if(json["uprtc"] !== "ack") {
                     Janus.error("Ooops: sendTrickleCandidate " + json["error"].code + " " + json["error"].reason);	// FIXME
                     return;
                 }
@@ -278,7 +278,7 @@ Janus.prototype.sendTrickleCandidate = function (handleId, candidate) {
 
   Janus.prototype.createSession = function (callbacks) {
     var transaction = randomString(12);
-    var request = { "janus": "create", "transaction": transaction };
+    var request = { "uprtc": "create", "transaction": transaction };
     if(this.token !== null && this.token !== undefined)
         request["token"] = this.token;
     if(this.apisecret !== null && this.apisecret !== undefined)
@@ -310,7 +310,7 @@ Janus.prototype.sendTrickleCandidate = function (handleId, candidate) {
         if(err == null){
             (function(json,janus_obj) {
                 Janus.debug(json);
-                if(json["janus"] !== "success") {
+                if(json["uprtc"] !== "success") {
                     Janus.error("Ooops: createsession" + json["error"].code + " " + json["error"].reason);	// FIXME
                     callbacks.error(json["error"].reason);
                     return;
@@ -394,7 +394,7 @@ Janus.prototype.createHandle = function (callbacks) {
     }
     Janus.log("create handle begin 3");
     var transaction = randomString(12);
-    var request = { "janus": "attach", "plugin": plugin, "transaction": transaction };
+    var request = { "uprtc": "attach", "plugin": plugin, "transaction": transaction };
     Janus.log("create handle 1 ",request);
     if(this.token !== null && this.token !== undefined)
         request["token"] = this.token;
@@ -416,7 +416,7 @@ Janus.prototype.createHandle = function (callbacks) {
         if(err == null){
             (function(json,janus_obj) {
                 Janus.debug(json);
-                if(json["janus"] !== "success") {
+                if(json["uprtc"] !== "success") {
                     Janus.error("Ooops: " + json["error"].code + " " + json["error"].reason);	// FIXME
                     callbacks.error(json["error"].reason);
                     return;
@@ -582,11 +582,11 @@ Janus.prototype.handleEvent = function  (json) {
         return;
     }
     //Janus.log("begin parse event:" + json);
-    if(json["janus"] == "keepalive") {
+    if(json["uprtc"] == "keepalive") {
         // Nothing happened
         Janus.vdebug("Got a keepalive on session " + this.sessionId);
         return;
-    } else if(json["janus"] == "ack") {
+    } else if(json["uprtc"] == "ack") {
         // Just an ack, we can probably ignore
         Janus.debug("Got an ack on session " + this.sessionId);
         Janus.debug(json);
@@ -599,7 +599,7 @@ Janus.prototype.handleEvent = function  (json) {
             delete this.transactions[transaction];
         }
         return;
-    } else if(json["janus"] == "success") {
+    } else if(json["uprtc"] == "success") {
         // Success!
         Janus.debug("Got a success on session " + this.sessionId);
         Janus.debug(json);
@@ -612,7 +612,7 @@ Janus.prototype.handleEvent = function  (json) {
             delete this.transactions[transaction];
         }
         return;
-    } else if(json["janus"] == "webrtcup") {
+    } else if(json["uprtc"] == "webrtcup") {
         // The PeerConnection with the gateway is up! Notify this
         Janus.debug("Got a webrtcup event on session " + this.sessionId);
         Janus.debug(json);
@@ -628,7 +628,7 @@ Janus.prototype.handleEvent = function  (json) {
         }
         pluginHandle.webrtcState(true);
         return;
-    } else if(json["janus"] == "hangup") {
+    } else if(json["uprtc"] == "hangup") {
         // A plugin asked the core to hangup a PeerConnection on one of our handles
         Janus.debug("Got a hangup event on session " + this.sessionId);
         Janus.debug(json);
@@ -644,7 +644,7 @@ Janus.prototype.handleEvent = function  (json) {
         }
         pluginHandle.webrtcState(false);
         pluginHandle.hangup();
-    } else if(json["janus"] == "detached") {
+    } else if(json["uprtc"] == "detached") {
         // A plugin asked the core to detach one of our handles
         Janus.debug("Got a detached event on session " + this.sessionId);
         Janus.debug(json);
@@ -660,7 +660,7 @@ Janus.prototype.handleEvent = function  (json) {
         }
         pluginHandle.ondetached();
         pluginHandle.detach();
-    } else if(json["janus"] == "media") {
+    } else if(json["uprtc"] == "media") {
         // Media started/stopped flowing
         Janus.debug("Got a media event on session " + this.sessionId);
         Janus.debug(json);
@@ -675,7 +675,7 @@ Janus.prototype.handleEvent = function  (json) {
             return;
         }
         pluginHandle.mediaState(json["type"], json["receiving"]);
-    } else if(json["janus"] == "slowlink") {
+    } else if(json["uprtc"] == "slowlink") {
         Janus.debug("Got a slowlink event on session " + this.sessionId);
         Janus.debug(json);
         // Trouble uplink or downlink
@@ -690,7 +690,7 @@ Janus.prototype.handleEvent = function  (json) {
             return;
         }
         pluginHandle.slowLink(json["uplink"], json["nacks"]);
-    } else if(json["janus"] == "error") {
+    } else if(json["uprtc"] == "error") {
         // Oops, something wrong happened
         Janus.error("Ooops: " + json["error"].code + " " + json["error"].reason);	// FIXME
         Janus.debug(json);
@@ -703,7 +703,7 @@ Janus.prototype.handleEvent = function  (json) {
             delete this.transactions[transaction];
         }
         return;
-    } else if(json["janus"] == "event") {
+    } else if(json["uprtc"] == "event") {
         Janus.debug("Got a plugin event on session " + this.sessionId);
         Janus.debug(json);
         var sender = json["sender"];
@@ -739,7 +739,7 @@ Janus.prototype.handleEvent = function  (json) {
             Janus.debug("No provided notification callback");
         }
     } else {
-        Janus.warn("Unkown message/event  '" + json["janus"] + "' on session " + this.sessionId);
+        Janus.warn("Unkown message/event  '" + json["uprtc"] + "' on session " + this.sessionId);
         Janus.debug(json);
     }
    // this.eventHandler();
@@ -774,7 +774,7 @@ Janus.prototype.destroySession = function (callbacks) {
         this.destroyHandle(phv.id, {asyncRequest: asyncRequest});
     }
     // Ok, go on
-    var request = { "janus": "destroy", "transaction": randomString(12) };
+    var request = { "uprtc": "destroy", "transaction": randomString(12) };
     if(this.token !== null && this.token !== undefined)
         request["token"] = this.token;
     if(this.apisecret !== null && this.apisecret !== undefined)
@@ -792,7 +792,7 @@ Janus.prototype.destroySession = function (callbacks) {
         if(err == null){
             (function(json) {
                 Janus.debug(json);
-                if(json["janus"] !== "success") {
+                if(json["uprtc"] !== "success") {
                     Janus.error("Ooops: destroySession " + json["error"].code + " " + json["error"].reason);	// FIXME
                     // callbacks.error(json["error"].reason);
                     // return;
@@ -828,7 +828,7 @@ Janus.prototype.destroyHandle = function (handleId, callbacks) {
         callbacks.error("Is the gateway down? (connected=false)");
         return;
     }
-    var request = { "janus": "detach", "transaction": randomString(12) };
+    var request = { "uprtc": "detach", "transaction": randomString(12) };
     if(this.token !== null && this.token !== undefined)
         request["token"] = this.token;
     if(this.apisecret !== null && this.apisecret !== undefined)
@@ -847,7 +847,7 @@ Janus.prototype.destroyHandle = function (handleId, callbacks) {
             (function(json,janus_obj) {
                 Janus.log("Destroyed handle:");
                 Janus.debug(json);
-                if(json["janus"] !== "success") {
+                if(json["uprtc"] !== "success") {
                     Janus.error("Ooops: destroyHandle " + json["error"].code + " " + json["error"].reason);	// FIXME
                 }
                 delete janus_obj.pluginHandles[handleId];
